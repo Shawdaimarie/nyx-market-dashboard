@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nyx — Market Dashboard</title>
+<style>
+  :root {
+    --bg: #000000;
+    --surface: #0d0d0d;
+    --surface-2: #161616;
+    --border: #2a2a2a;
+    --border-strong: #3d3d3d;
+    --text: #f5f5f5;
+    --text-dim: #8a8a8a;
+    --text-faint: #545454;
+    --up: #34d399;
+    --down: #f87171;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  #app { max-width: 820px; margin: 0 auto; padding: 0 20px 60px; min-height: 100vh; }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 24px 0 16px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--bg); z-index: 5;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-mark { width: 22px; height: 22px; border-radius: 50%; background: var(--text); position: relative; flex-shrink: 0; }
+  .brand-mark::after { content: ""; position: absolute; inset: 6px; border-radius: 50%; background: var(--bg); }
+  .brand-name { font-size: 15px; font-weight: 600; letter-spacing: 0.02em; }
+  .brand-sub { font-size: 11px; color: var(--text-faint); margin-top: 1px; }
+
+  #refresh-btn {
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 10px; padding: 8px 14px; font-size: 13px; cursor: pointer;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s ease;
+  }
+  #refresh-btn:hover { border-color: var(--border-strong); }
+  #refresh-btn:active { transform: scale(0.93); }
+  #refresh-btn:disabled { opacity: 0.4; cursor: default; }
+
+  nav#tabs {
+    display: flex; gap: 6px; padding: 16px 0 0; border-bottom: 1px solid var(--border);
+  }
+  .tab {
+    background: none; border: none; color: var(--text-faint); font-size: 13px;
+    padding: 8px 4px 12px; cursor: pointer; border-bottom: 2px solid transparent;
+    transition: color 0.2s ease;
+  }
+  .tab.active { color: var(--text); border-bottom-color: var(--text); }
+  .tab:hover { color: var(--text-dim); }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  section { margin-top: 24px; }
+  .section-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-faint); margin-bottom: 12px; }
+
+  #total-card {
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 16px;
+    padding: 20px; opacity: 0; will-change: transform, opacity;
+  }
+  #total-value { font-size: 32px; font-weight: 600; letter-spacing: -0.01em; }
+  #total-change { font-size: 14px; margin-top: 4px; }
+
+  .card-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .item-card {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px 16px; opacity: 0; will-change: transform, opacity;
+  }
+  .item-left { display: flex; align-items: center; gap: 12px; }
+  .symbol-badge {
+    width: 36px; height: 36px; border-radius: 50%; background: var(--surface-2);
+    border: 1px solid var(--border); display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600;
+  }
+  .item-name { font-size: 14px; font-weight: 500; }
+  .item-sub { font-size: 12px; color: var(--text-faint); }
+  .item-right { text-align: right; }
+  .item-value { font-size: 14px; font-weight: 500; }
+  .item-change { font-size: 12px; margin-top: 2px; }
+  .up { color: var(--up); }
+  .down { color: var(--down); }
+
+  .metric-row { display: flex; gap: 16px; margin-top: 6px; flex-wrap: wrap; }
+  .metric { font-size: 11px; color: var(--text-faint); }
+  .metric b { color: var(--text-dim); font-weight: 500; }
+
+  .research-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px 16px; opacity: 0; will-change: transform, opacity; margin-bottom: 10px;
+  }
+  .research-title { font-size: 13.5px; font-weight: 500; margin-bottom: 4px; }
+  .research-body { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+  .research-date { font-size: 11px; color: var(--text-faint); margin-top: 6px; }
+
+  #analysis-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 18px 20px; font-size: 14px; line-height: 1.7; color: var(--text);
+    opacity: 0; will-change: transform, opacity;
+  }
+  #risk-note { font-size: 12px; color: var(--text-faint); margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+
+  .empty, .loading { color: var(--text-faint); font-size: 13px; padding: 20px 0; text-align: center; }
+
+  .disclaimer { font-size: 11px; color: var(--text-faint); text-align: center; margin-top: 40px; line-height: 1.6; }
+
+  #ask-row { display: flex; gap: 10px; margin-top: 14px; }
+  #ask-input {
+    flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    color: var(--text); font-family: inherit; font-size: 13.5px; padding: 10px 13px; outline: none;
+  }
+  #ask-input:focus { border-color: var(--border-strong); }
+  #ask-btn {
+    background: var(--text); color: var(--bg); border: none; border-radius: 12px;
+    padding: 0 16px; font-size: 13px; cursor: pointer; font-weight: 500;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  #ask-btn:active { transform: scale(0.92); }
+  #ask-answer { margin-top: 12px; font-size: 13.5px; line-height: 1.6; color: var(--text-dim); display: none; }
+
+  .podcast-card {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px 16px; opacity: 0; will-change: transform, opacity;
+  }
+  .podcast-name { font-size: 14px; font-weight: 500; }
+  .podcast-desc { font-size: 12px; color: var(--text-faint); margin-top: 2px; }
+  .podcast-link {
+    flex-shrink: 0; font-size: 12px; color: var(--text); text-decoration: none;
+    border: 1px solid var(--border-strong); border-radius: 8px; padding: 6px 12px;
+  }
+  .podcast-link:hover { background: var(--surface-2); }
+
+  .headline-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px 16px; margin-bottom: 10px; opacity: 0; will-change: transform, opacity;
+  }
+  .headline-source { font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.05em; }
+  .headline-title { font-size: 14px; font-weight: 500; margin: 4px 0; }
+  .headline-summary { font-size: 12.5px; color: var(--text-dim); line-height: 1.5; }
+  .headline-link { font-size: 12px; color: var(--text); text-decoration: underline; }
+
+  .goal-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px 16px; margin-bottom: 10px; opacity: 0; will-change: transform, opacity;
+  }
+  .goal-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .goal-name { font-size: 14px; font-weight: 500; }
+  .goal-meta { font-size: 12px; color: var(--text-faint); }
+  .goal-track { height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+  .goal-fill { height: 100%; background: var(--text); border-radius: 3px; transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    background: var(--text-faint); transition: background 0.3s ease;
+  }
+  .status-dot.connected { background: var(--up); }
+  .status-dot.error { background: var(--down); }
+  .connect-btn {
+    background: none; border: 1px solid var(--border-strong); color: var(--text);
+    border-radius: 8px; padding: 6px 14px; font-size: 12px; cursor: pointer;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease;
+  }
+  .connect-btn:hover { background: var(--surface-2); }
+  .connect-btn:active { transform: scale(0.94); }
+  .connect-btn:disabled { opacity: 0.4; cursor: default; }
+
+  .quicklink-chip {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 12px; text-decoration: none; color: var(--text); font-size: 13px;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s ease;
+  }
+  .quicklink-chip:hover { border-color: var(--border-strong); }
+  .quicklink-chip:active { transform: scale(0.96); }
+  .quicklink-symbol { font-weight: 500; }
+  .quicklink-name { font-size: 11px; color: var(--text-faint); }
+</style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div class="brand">
+        <div class="brand-mark"></div>
+        <div>
+          <div class="brand-name">Nyx</div>
+          <div class="brand-sub">Market dashboard</div>
+        </div>
+      </div>
+      <button id="refresh-btn">Refresh</button>
+    </header>
+
+    <nav id="tabs">
+      <button class="tab active" data-tab="overview">Overview</button>
+      <button class="tab" data-tab="crypto">Crypto</button>
+      <button class="tab" data-tab="stocks">Stocks</button>
+      <button class="tab" data-tab="research">Research</button>
+      <button class="tab" data-tab="accounts">Accounts</button>
+      <button class="tab" data-tab="learn">Learn</button>
+      <button class="tab" data-tab="goals">Goals</button>
+      <button class="tab" data-tab="trends">Trends</button>
+    </nav>
+
+    <div id="panel-overview" class="panel active">
+      <section>
+        <div class="section-label">Portfolio value</div>
+        <div id="total-card"><div class="loading">Refresh to load your data.</div></div>
+      </section>
+      <section>
+        <div class="section-label">Quick links to Robinhood</div>
+        <div id="quicklinks-wrap" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:8px;"></div>
+      </section>
+      <section>
+        <div class="section-label">Allocation</div>
+        <div id="allocation-wrap" style="display:flex; align-items:center; gap:24px; background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:18px 20px;">
+          <div style="position:relative; width:130px; height:130px; flex-shrink:0;">
+            <canvas id="allocation-chart"></canvas>
+          </div>
+          <div id="allocation-legend" style="flex:1; display:flex; flex-direction:column; gap:8px;">
+            <div class="empty" style="padding:0; text-align:left;">Refresh to see your allocation breakdown.</div>
+          </div>
+        </div>
+      </section>
+      <section>
+        <div class="section-label">Market analysis</div>
+        <div id="analysis-card"><div class="loading">Analysis will appear here after refresh.</div></div>
+        <div id="ask-row">
+          <input id="ask-input" type="text" placeholder="Ask about your holdings or the market…" />
+          <button id="ask-btn">Ask</button>
+        </div>
+        <div id="ask-answer"></div>
+      </section>
+      <section>
+        <div class="section-label">Activity log</div>
+        <div id="log-panel" style="background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:12px 16px; max-height:140px; overflow-y:auto; font-size:12px; font-family:ui-monospace,monospace; color:var(--text-faint);">
+          <div class="empty" style="padding:0; text-align:left;">No activity yet.</div>
+        </div>
+      </section>
+    </div>
+
+    <div id="panel-crypto" class="panel">
+      <section>
+        <div class="section-label">Crypto holdings (Robinhood)</div>
+        <div class="card-list" id="crypto-list"><div class="empty">No data yet.</div></div>
+      </section>
+    </div>
+
+    <div id="panel-stocks" class="panel">
+      <section>
+        <div class="section-label">Tracked stocks (FactSet)</div>
+        <div class="card-list" id="stocks-list"><div class="empty">No data yet.</div></div>
+      </section>
+    </div>
+
+    <div id="panel-research" class="panel">
+      <section>
+        <div class="section-label">Company research (Quartr)</div>
+        <div id="research-list"><div class="empty">No data yet.</div></div>
+      </section>
+    </div>
+
+    <div id="panel-accounts" class="panel">
+      <section>
+        <div class="section-label">Connections</div>
+        <div class="card-list" id="connections-list"></div>
+      </section>
+      <section>
+        <div class="section-label">Bank accounts (Grasshopper + Era)</div>
+        <div class="card-list" id="accounts-list"><div class="empty">No data yet.</div></div>
+      </section>
+    </div>
+
+    <div id="panel-learn" class="panel">
+      <section>
+        <div class="section-label">Today's headlines</div>
+        <button id="headlines-btn" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:8px 14px;font-size:13px;cursor:pointer;margin-bottom:12px;">Get latest headlines</button>
+        <div id="headlines-list"><div class="empty">Click above to pull current NYT and WSJ finance headlines.</div></div>
+      </section>
+      <section>
+        <div class="section-label">Money, currency, and mindset</div>
+        <div class="card-list" id="education-list"></div>
+      </section>
+      <section>
+        <div class="section-label">Women in finance & investing</div>
+        <div class="card-list" id="women-finance-list"></div>
+      </section>
+      <section>
+        <div class="section-label">Websites worth bookmarking</div>
+        <div class="card-list" id="websites-list"></div>
+      </section>
+      <section>
+        <div class="section-label">AI in financial technology</div>
+        <div class="card-list" id="ai-finance-list"></div>
+      </section>
+      <section>
+        <div class="section-label">Focus sounds</div>
+        <div style="font-size:12px; color:var(--text-faint); margin-bottom:10px;">Background music for a calmer research session \u2014 no claims about outcomes, just ambiance.</div>
+        <div class="card-list" id="focus-sounds-list"></div>
+      </section>
+      <section>
+        <div class="section-label">Podcasts</div>
+        <div class="card-list" id="podcasts-list"></div>
+      </section>
+    </div>
+
+    <div id="panel-goals" class="panel">
+      <section>
+        <div class="section-label">Your goals</div>
+        <div id="goals-list"><div class="empty">No goals yet — add one below.</div></div>
+        <div style="display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;">
+          <input id="goal-name" type="text" placeholder="Goal name" style="flex:1; min-width:120px; background:var(--surface); border:1px solid var(--border); border-radius:10px; color:var(--text); font-family:inherit; font-size:13px; padding:9px 12px; outline:none;" />
+          <input id="goal-target" type="number" placeholder="Target $" style="width:110px; background:var(--surface); border:1px solid var(--border); border-radius:10px; color:var(--text); font-family:inherit; font-size:13px; padding:9px 12px; outline:none;" />
+          <input id="goal-date" type="date" style="background:var(--surface); border:1px solid var(--border); border-radius:10px; color:var(--text); font-family:inherit; font-size:13px; padding:9px 12px; outline:none;" />
+          <button id="goal-add-btn" style="background:var(--text); color:var(--bg); border:none; border-radius:10px; padding:0 16px; font-size:13px; cursor:pointer; font-weight:500;">Add goal</button>
+        </div>
+      </section>
+    </div>
+
+    <div id="panel-trends" class="panel">
+      <section>
+        <div class="section-label">Growth trend, indexed to 6 months ago</div>
+        <button id="trends-btn" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:8px 14px;font-size:13px;cursor:pointer;margin-bottom:16px;">Load trend data</button>
+        <div id="trends-empty" class="empty">Click above to load a 6-month growth comparison across your holdings.</div>
+        <div id="chart-wrap" style="display:none; position:relative; height:320px; margin-bottom:16px;">
+          <canvas id="trend-chart"></canvas>
+        </div>
+        <div id="trend-stats" class="metric-row" style="margin-top:4px;"></div>
+      </section>
+    </div>
+
+    <div class="disclaimer">
+      This is informational analysis only, not financial advice.<br />
+      Markets are volatile — nothing here predicts or guarantees any outcome.<br />
+      No trades are placed by this app.
+    </div>
+  </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+  // ---- Feature flags (toggle tabs/features without editing markup elsewhere) ----
+  const FEATURE_FLAGS = {
+    accounts: true,
+    trends: true,
+    goals: true,
+    learn: true,
+    connections: true
+  };
+  document.querySelectorAll('.tab').forEach(tab => {
+    const key = tab.dataset.tab;
+    if (FEATURE_FLAGS[key] === false) tab.style.display = 'none';
+  });
+
+  // ---- Lightweight observability log ----
+  const logPanel = document.getElementById('log-panel');
+  function log(message, level = 'info') {
+    if (!logPanel) return;
+    if (logPanel.querySelector('.empty')) logPanel.innerHTML = '';
+    const line = document.createElement('div');
+    const time = new Date().toLocaleTimeString();
+    const color = level === 'error' ? 'var(--down)' : level === 'success' ? 'var(--up)' : 'var(--text-faint)';
+    line.style.cssText = `color:${color}; padding:2px 0;`;
+    line.textContent = `[${time}] ${message}`;
+    logPanel.appendChild(line);
+    logPanel.scrollTop = logPanel.scrollHeight;
+  }
+
+  // ---- Retry with exponential backoff for API calls ----
+  async function fetchWithRetry(url, options, retries = 2, baseDelay = 800) {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const response = await fetch(url, options);
+        if (!response.ok && attempt < retries) {
+          log(`Request failed (status ${response.status}), retrying…`, 'error');
+          await new Promise(r => setTimeout(r, baseDelay * Math.pow(2, attempt)));
+          continue;
+        }
+        return response;
+      } catch (err) {
+        if (attempt < retries) {
+          log(`Network error, retrying (attempt ${attempt + 1})…`, 'error');
+          await new Promise(r => setTimeout(r, baseDelay * Math.pow(2, attempt)));
+        } else {
+          throw err;
+        }
+      }
+    }
+  }
+
+  const refreshBtn = document.getElementById('refresh-btn');
+  const totalCard = document.getElementById('total-card');
+  const cryptoList = document.getElementById('crypto-list');
+  const stocksList = document.getElementById('stocks-list');
+  const researchList = document.getElementById('research-list');
+  const accountsList = document.getElementById('accounts-list');
+  const headlinesBtn = document.getElementById('headlines-btn');
+  const headlinesList = document.getElementById('headlines-list');
+  const podcastsList = document.getElementById('podcasts-list');
+  const goalsList = document.getElementById('goals-list');
+  const goalNameInput = document.getElementById('goal-name');
+  const goalTargetInput = document.getElementById('goal-target');
+  const goalDateInput = document.getElementById('goal-date');
+  const goalAddBtn = document.getElementById('goal-add-btn');
+
+  const PODCASTS = [
+    { name: "WSJ Your Money Briefing", desc: "Daily personal-finance and markets briefing from The Wall Street Journal.", url: "https://podcasts.apple.com/us/podcast/wsj-your-money-briefing/id152024419" },
+    { name: "Bloomberg Tech", desc: "Daily conversations on the technology industry from Bloomberg.", url: "https://podcasts.apple.com/us/podcast/bloomberg-tech/id1611767434" },
+    { name: "Bloomberg Crypto", desc: "Daily crypto market coverage from Bloomberg and iHeart.", url: "https://podcasts.apple.com/us/podcast/bloomberg-crypto/id1623197303" },
+    { name: "The Bitcoin Frontier", desc: "Long-form interviews on bitcoin adoption, from Unchained.", url: "https://podcasts.apple.com/us/podcast/the-bitcoin-frontier/id1709751656" },
+    { name: "The Future of Everything", desc: "Stanford Engineering's show on emerging tech, AI, and science.", url: "https://podcasts.apple.com/us/podcast/the-future-of-everything/id1235836821" },
+    { name: "So Money with Farnoosh Torabi", desc: "Award-winning financial strategist covering money strategy and crypto basics, 40M+ downloads.", url: "https://podcasts.apple.com/us/podcast/so-money-with-farnoosh-torabi/id955939085" },
+    { name: "HerMoney with Jean Chatzky", desc: "Personal finance and investing through a female-forward lens.", url: "https://podcasts.apple.com/us/podcast/hermoney-with-jean-chatzky/id1098802558" },
+    { name: "The Investor's Podcast (We Study Billionaires)", desc: "The world's largest stock-investing podcast, ~200M downloads, includes a Bitcoin Fundamentals series.", url: "https://podcasts.apple.com/us/podcast/the-investors-podcast-we-study-billionaires-the/id928933489" },
+    { name: "Animal Spirits", desc: "Michael Batnick and Ben Carlson on markets, investing, and crypto in plain language.", url: "https://podcasts.apple.com/us/podcast/animal-spirits-podcast/id1310192007" }
+  ];
+
+  const EDUCATION = [
+    {
+      title: "Old money vs. new money",
+      body: "\u201cOld money\u201d usually refers to multi-generational, often inherited wealth tied to family name and long-established institutions. \u201cNew money\u201d refers to wealth built within one lifetime, often through founding companies, technology, or public markets. Neither is inherently more secure \u2014 both are subject to the same market and estate-planning risks.",
+      link: "https://www.federalreserveeducation.org/", linkLabel: "Federal Reserve Education"
+    },
+    {
+      title: "What is currency, really?",
+      body: "Currency is a medium of exchange a society agrees to trust \u2014 historically metal coins, then paper notes backed by gold, and since 1971 fiat currency backed by government and institutional trust rather than a physical commodity. Crypto is a newer attempt at the same basic idea: a shared system people agree to trust.",
+      link: "https://www.uscurrency.gov/history", linkLabel: "U.S. Currency Education Program"
+    },
+    {
+      title: "A healthy money mindset",
+      body: "Financial psychologists generally point to a few durable habits: tracking spending without shame, separating short-term wants from long-term goals, and treating setbacks as data rather than failure. Confidence in money decisions tends to come from consistent small habits, not from any single big move.",
+      link: "https://www.federalreserveeducation.org/", linkLabel: "Federal Reserve Education"
+    },
+    {
+      title: "Financial flexibility for remote and online students",
+      body: "Federal student aid, income-driven repayment plans, and deferment options apply the same way to students in accredited remote and online programs as they do on-campus. The Federal Student Aid office is the authoritative source for eligibility, forms, and current repayment options.",
+      link: "https://studentaid.gov/", linkLabel: "Federal Student Aid (studentaid.gov)"
+    },
+    {
+      title: "What universal financial access means",
+      body: "Financial inclusion, sometimes called universal financial access, refers to individuals and businesses having access to useful, affordable financial products \u2014 banking, credit, insurance \u2014 delivered responsibly. The World Bank tracks this globally through its Global Findex database.",
+      link: "https://www.worldbank.org/en/publication/globalfindex", linkLabel: "World Bank Global Findex"
+    },
+    {
+      title: "Building credit with a secured card (Chime)",
+      body: "Chime's credit-building card (formerly called Credit Builder, now Chime Card) is a secured Visa card with no annual fee, no interest, and no credit check to apply \u2014 you can only spend what you've moved into it, and on-time payments are reported to all three credit bureaus. It's one option among several secured-card products; compare terms before applying, since figures Chime cites (like average score gains) are historical averages, not guarantees for any individual.",
+      link: "https://www.chime.com/credit/credit-builder/", linkLabel: "chime.com \u2014 Chime Card"
+    },
+    {
+      title: "Publicly-traded space companies (as of mid-2026)",
+      body: "SpaceX went public in June 2026 (ticker SPCX) in the largest IPO in history. Other public space-sector names include Rocket Lab (RKLB), AST SpaceMobile (ASTS), Iridium (IRDM), and Planet Labs (PL). Multiple sources describe this sector as highly volatile \u2014 several of these companies are not yet profitable, and analysts widely note it's suited only to investors comfortable with significant risk. \u201cGood for humanity\u201d is a judgment only you can make; I can give you the facts, not the verdict.",
+      link: "https://www.stocktitan.net/stocks/themes/space-stocks", linkLabel: "StockTitan \u2014 space stocks overview"
+    }
+  ];
+
+  const WOMEN_FINANCE = [
+    {
+      title: "Girls Who Invest",
+      body: "A nonprofit founded in 2015 offering tuition-free investment education, mentorship, and paid internships aimed at increasing the share of investable capital managed by women.",
+      link: "https://www.girlswhoinvest.org/", linkLabel: "girlswhoinvest.org"
+    },
+    {
+      title: "Ellevest",
+      body: "A women-founded, SEC-registered investment advisor built specifically around closing the gender wealth gap, offering financial planning and managed investing.",
+      link: "https://www.ellevest.com/", linkLabel: "ellevest.com"
+    }
+  ];
+
+  function renderInfoCards(container, items) {
+    container.innerHTML = '';
+    items.forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'research-card';
+      card.innerHTML = `
+        <div class="research-title">${item.title}</div>
+        <div class="research-body">${item.body}</div>
+        <div class="research-date"><a class="headline-link" href="${item.link}" target="_blank" rel="noopener">${item.linkLabel}</a></div>`;
+      container.appendChild(card);
+      springIn(card);
+    });
+  }
+  const WEBSITES = [
+    { title: "Investopedia", body: "The most widely used reference for market, stock, and crypto definitions and fundamentals \u2014 a good first stop when a term is unfamiliar.", link: "https://www.investopedia.com/", linkLabel: "investopedia.com" },
+    { title: "CoinDesk", body: "A leading source for crypto and Bitcoin news, price data, and regulatory coverage.", link: "https://www.coindesk.com/", linkLabel: "coindesk.com" },
+    { title: "HerMoney.com", body: "Jean Chatzky's women-founded site covering investing, wealth-building, and market news aimed at women.", link: "https://hermoney.com/", linkLabel: "hermoney.com" },
+    { title: "Clever Girl Finance", body: "One of the largest personal-finance education platforms for women in the U.S., founded by Bola Sokunbi, focused on debt payoff, saving, and building wealth.", link: "https://www.clevergirlfinance.com/", linkLabel: "clevergirlfinance.com" }
+  ];
+
+  const AI_FINANCE = [
+    { title: "IBM", body: "Delivers AI-powered financial solutions through hybrid cloud, machine learning, and data analytics, supporting banks with automation, risk management, and compliance monitoring.", link: "https://www.ibm.com/industries/banking-financial-markets", linkLabel: "ibm.com" },
+    { title: "Zest AI", body: "Specializes in explainable credit-underwriting models designed to expand access to credit while meeting fair-lending requirements; also offers AI fraud detection for lenders.", link: "https://www.zest.ai/", linkLabel: "zest.ai" },
+    { title: "Socratix AI (women-founded)", body: "Autonomous AI agents that help financial institutions' fraud and risk teams investigate faster and cut false positives. Founded 2025 in San Francisco by Riya Jagetia and Satya Vasanth Reddy Tumati.", link: "https://getsocratix.ai/", linkLabel: "getsocratix.ai" },
+    { title: "ContexQ (women-founded)", body: "Graph-based AI that detects fraud, money laundering, and hidden beneficial ownership by mapping relationships between entities.", link: "https://contexq.com/", linkLabel: "contexq.com" }
+  ];
+
+  renderInfoCards(document.getElementById('education-list'), EDUCATION);
+  renderInfoCards(document.getElementById('women-finance-list'), WOMEN_FINANCE);
+  renderInfoCards(document.getElementById('websites-list'), WEBSITES);
+  renderInfoCards(document.getElementById('ai-finance-list'), AI_FINANCE);
+
+  const FOCUS_SOUNDS = [
+    { name: "Instrumental Focus: Concentration & Study", desc: "617-track Spotify playlist, 72K+ saves, no lyrics.", url: "https://open.spotify.com/playlist/2MfcU5Uglie37JhfUxc2lR" },
+    { name: "Pure Focus", desc: "Apple Music's editorially curated ambient/electronic focus playlist.", url: "https://music.apple.com/us/playlist/pure-focus/pl.dbd712beded846dca273d5d3259d28aa" },
+    { name: "Lofi Girl", desc: "The original lo-fi beats livestream/channel on YouTube, widely used for background focus.", url: "https://www.youtube.com/@LofiGirl" }
+  ];
+
+  function renderFocusSounds() {
+    const container = document.getElementById('focus-sounds-list');
+    container.innerHTML = '';
+    FOCUS_SOUNDS.forEach(p => {
+      const card = document.createElement('div');
+      card.className = 'podcast-card';
+      card.innerHTML = `
+        <div><div class="podcast-name">${p.name}</div><div class="podcast-desc">${p.desc}</div></div>
+        <a class="podcast-link" href="${p.url}" target="_blank" rel="noopener">Listen</a>`;
+      container.appendChild(card);
+      springIn(card);
+    });
+  }
+  renderFocusSounds();
+
+  function renderPodcasts() {
+    podcastsList.innerHTML = '';
+    PODCASTS.forEach(p => {
+      const card = document.createElement('div');
+      card.className = 'podcast-card';
+      card.innerHTML = `
+        <div><div class="podcast-name">${p.name}</div><div class="podcast-desc">${p.desc}</div></div>
+        <a class="podcast-link" href="${p.url}" target="_blank" rel="noopener">Listen</a>`;
+      podcastsList.appendChild(card);
+      springIn(card);
+    });
+  }
+  renderPodcasts();
+  const analysisCard = document.getElementById('analysis-card');
+  const askInput = document.getElementById('ask-input');
+  const askBtn = document.getElementById('ask-btn');
+  const askAnswer = document.getElementById('ask-answer');
+  const tabs = document.querySelectorAll('.tab');
+  const panels = document.querySelectorAll('.panel');
+
+  let lastData = null;
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      panels.forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById(`panel-${tab.dataset.tab}`).classList.add('active');
+    });
+  });
+
+  function springIn(el) {
+    let pos = 18, vel = 0, opacity = 0;
+    const stiffness = 210, damping = 20, mass = 1;
+    function frame() {
+      const accel = (-stiffness * pos - damping * vel) / mass;
+      vel += accel * (1 / 60);
+      pos += vel * (1 / 60);
+      opacity = Math.min(1, opacity + 0.12);
+      el.style.transform = `translateY(${pos}px)`;
+      el.style.opacity = opacity;
+      if (Math.abs(pos) > 0.5 || Math.abs(vel) > 0.5 || opacity < 1) {
+        requestAnimationFrame(frame);
+      } else {
+        el.style.transform = 'translateY(0)';
+        el.style.opacity = 1;
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  const QUICK_LINKS = [
+    { symbol: "AAPL", name: "Apple", url: "https://robinhood.com/us/en/stocks/AAPL" },
+    { symbol: "TSLA", name: "Tesla", url: "https://robinhood.com/us/en/stocks/TSLA" },
+    { symbol: "AMZN", name: "Amazon", url: "https://robinhood.com/us/en/stocks/AMZN" },
+    { symbol: "GOOGL", name: "Alphabet (Google)", url: "https://robinhood.com/us/en/stocks/GOOGL" },
+    { symbol: "VOO", name: "Vanguard S&P 500 ETF", url: "https://robinhood.com/us/en/stocks/VOO" },
+    { symbol: "ETH", name: "Ethereum", url: "https://robinhood.com/us/en/crypto/ETH/" },
+    { symbol: "Crypto", name: "Browse all crypto", url: "https://robinhood.com/us/en/crypto/" },
+    { symbol: "SPCX", name: "SpaceX (IPO'd June 2026)", url: "https://robinhood.com/us/en/stocks/SPCX" },
+    { symbol: "RKLB", name: "Rocket Lab", url: "https://robinhood.com/us/en/stocks/RKLB" },
+    { symbol: "ASTS", name: "AST SpaceMobile", url: "https://robinhood.com/us/en/stocks/ASTS" }
+  ];
+
+  function renderQuickLinks() {
+    const wrap = document.getElementById('quicklinks-wrap');
+    wrap.innerHTML = '';
+    QUICK_LINKS.forEach(q => {
+      const a = document.createElement('a');
+      a.className = 'quicklink-chip';
+      a.href = q.url; a.target = '_blank'; a.rel = 'noopener';
+      a.innerHTML = `<span><span class="quicklink-symbol">${q.symbol}</span><br><span class="quicklink-name">${q.name}</span></span><span aria-hidden="true" style="font-size:14px; color:var(--text-faint);">\u2197</span>`;
+      wrap.appendChild(a);
+    });
+  }
+  renderQuickLinks();
+
+  const CONNECTORS = [
+    { id: 'robinhood', name: 'Robinhood', desc: 'Crypto positions', url: 'https://agent.robinhood.com/mcp/trading' },
+    { id: 'factset', name: 'FactSet', desc: 'Stock fundamentals', url: 'https://mcp.factset.com/content/v1' },
+    { id: 'quartr', name: 'Quartr', desc: 'Company research', url: 'https://mcp.quartr.com/mcp' },
+    { id: 'grasshopper', name: 'Grasshopper Bank', desc: 'Bank accounts', url: 'https://grasshopper-mcp.prd.narmitech.com/mcp' },
+    { id: 'era', name: 'Era Context', desc: 'Linked finances', url: 'https://context.era.app' }
+  ];
+  const connectionStatus = {};
+
+  function renderConnections() {
+    const container = document.getElementById('connections-list');
+    container.innerHTML = '';
+    CONNECTORS.forEach(c => {
+      const status = connectionStatus[c.id] || 'idle';
+      const card = document.createElement('div');
+      card.className = 'item-card';
+      card.innerHTML = `
+        <div class="item-left">
+          <span class="status-dot ${status === 'connected' ? 'connected' : status === 'error' ? 'error' : ''}"></span>
+          <div><div class="item-name">${c.name}</div><div class="item-sub">${c.desc}</div></div>
+        </div>
+        <button class="connect-btn" data-id="${c.id}">${status === 'connected' ? 'Reconnect' : 'Connect'}</button>`;
+      container.appendChild(card);
+      springIn(card);
+    });
+    container.querySelectorAll('.connect-btn').forEach(btn => {
+      btn.addEventListener('click', () => connectOne(btn.dataset.id));
+    });
+  }
+
+  async function connectOne(id) {
+    const c = CONNECTORS.find(x => x.id === id);
+    if (!c) return;
+    const btn = document.querySelector(`.connect-btn[data-id="${id}"]`);
+    if (btn) { btn.disabled = true; btn.textContent = 'Connecting…'; }
+    log(`Connecting to ${c.name}…`);
+    try {
+      const response = await fetchWithRetry('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 200,
+          messages: [{ role: 'user', content: `Confirm you can reach the ${c.name} connector by listing its available tools. Reply with a short confirmation only.` }],
+          mcp_servers: [{ type: 'url', url: c.url, name: c.id }]
+        })
+      });
+      const data = await response.json();
+      const hadToolUse = (data.content || []).some(b => b.type === 'mcp_tool_use' || b.type === 'mcp_tool_result');
+      connectionStatus[id] = response.ok ? 'connected' : 'error';
+      log(`${c.name} ${connectionStatus[id]}`, connectionStatus[id] === 'connected' ? 'success' : 'error');
+    } catch (err) {
+      connectionStatus[id] = 'error';
+      log(`${c.name} connection failed: ${err.message}`, 'error');
+      console.error(err);
+    } finally {
+      renderConnections();
+    }
+  }
+  renderConnections();
+
+  // ---- Allocation chart ----
+  let allocationChart = null;
+  function renderAllocation(data) {
+    const cryptoTotal = (data.positions || []).reduce((s, p) => s + (p.value_usd || 0), 0);
+    const stockTotal = (data.stocks || []).reduce((s, st) => s + (st.price || 0), 0); // holdings value not separately tracked; fallback below
+    const bankTotal = (data.accounts || []).reduce((s, a) => s + (a.balance_usd || 0), 0);
+    const stockHoldingsTotal = Math.max(0, (data.total_value_usd || 0) - cryptoTotal - bankTotal);
+
+    const segments = [
+      { label: 'Crypto', value: cryptoTotal, color: '#5DCAA5' },
+      { label: 'Stocks', value: stockHoldingsTotal, color: '#7F77DD' },
+      { label: 'Bank', value: bankTotal, color: '#EF9F27' }
+    ].filter(s => s.value > 0);
+
+    const legend = document.getElementById('allocation-legend');
+    legend.innerHTML = '';
+    if (segments.length === 0) {
+      legend.innerHTML = '<div class="empty" style="padding:0; text-align:left;">No allocation data yet.</div>';
+      const ctx = document.getElementById('allocation-chart').getContext('2d');
+      if (allocationChart) { allocationChart.destroy(); allocationChart = null; }
+      return;
+    }
+    const total = segments.reduce((s, x) => s + x.value, 0);
+    segments.forEach(seg => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex; align-items:center; justify-content:space-between; font-size:13px;';
+      row.innerHTML = `
+        <span style="display:flex; align-items:center; gap:8px;"><span style="width:8px;height:8px;border-radius:50%;background:${seg.color};display:inline-block;"></span>${seg.label}</span>
+        <span style="color:var(--text-dim);">${((seg.value / total) * 100).toFixed(0)}%</span>`;
+      legend.appendChild(row);
+    });
+
+    const ctx = document.getElementById('allocation-chart').getContext('2d');
+    if (allocationChart) allocationChart.destroy();
+    allocationChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: segments.map(s => s.label),
+        datasets: [{
+          data: segments.map(s => s.value),
+          backgroundColor: segments.map(s => s.color),
+          borderColor: '#000000',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '68%',
+        plugins: { legend: { display: false }, tooltip: { enabled: false } }
+      }
+    });
+  }
+
+  function fmtUsd(n) { return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n || 0); }
+  function fmtPct(n) { const v = n || 0; return `${v > 0 ? '+' : ''}${v.toFixed(2)}%`; }
+
+  function extractText(data) {
+    return (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
+  }
+  function parseJsonSafe(text) {
+    try { return JSON.parse(text.replace(/```json|```/g, '').trim()); } catch { return null; }
+  }
+
+  function renderTotal(data) {
+    totalCard.innerHTML = '';
+    const v = document.createElement('div');
+    v.id = 'total-value';
+    v.textContent = fmtUsd(data.total_value_usd);
+    const c = document.createElement('div');
+    c.id = 'total-change';
+    c.className = (data.total_gain_pct || 0) >= 0 ? 'up' : 'down';
+    c.textContent = `${fmtPct(data.total_gain_pct)} overall`;
+    totalCard.appendChild(v); totalCard.appendChild(c);
+    springIn(totalCard);
+  }
+
+  function renderCrypto(positions) {
+    cryptoList.innerHTML = '';
+    if (!positions || positions.length === 0) { cryptoList.innerHTML = '<div class="empty">No crypto positions found.</div>'; return; }
+    positions.forEach(p => {
+      const card = document.createElement('div');
+      card.className = 'item-card';
+      const change = p.change_pct_24h ?? 0;
+      card.innerHTML = `
+        <div class="item-left">
+          <div class="symbol-badge">${(p.symbol||'?').slice(0,4)}</div>
+          <div><div class="item-name">${p.symbol||'Unknown'}</div><div class="item-sub">${p.quantity ?? ''} coins</div></div>
+        </div>
+        <div class="item-right">
+          <div class="item-value">${fmtUsd(p.value_usd)}</div>
+          <div class="item-change ${change>=0?'up':'down'}">${fmtPct(change)} · 24h</div>
+        </div>`;
+      cryptoList.appendChild(card);
+      springIn(card);
+    });
+  }
+
+  function renderStocks(stocks) {
+    stocksList.innerHTML = '';
+    if (!stocks || stocks.length === 0) { stocksList.innerHTML = '<div class="empty">No stock data found.</div>'; return; }
+    stocks.forEach(s => {
+      const card = document.createElement('div');
+      card.className = 'item-card';
+      card.style.flexDirection = 'column';
+      card.style.alignItems = 'stretch';
+      const change = s.change_pct_1d ?? 0;
+      card.innerHTML = `
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div class="item-left">
+            <div class="symbol-badge">${(s.ticker||'?').slice(0,4)}</div>
+            <div><div class="item-name">${s.company_name || s.ticker}</div><div class="item-sub">${s.ticker}</div></div>
+          </div>
+          <div class="item-right">
+            <div class="item-value">${fmtUsd(s.price)}</div>
+            <div class="item-change ${change>=0?'up':'down'}">${fmtPct(change)} · today</div>
+          </div>
+        </div>
+        <div class="metric-row">
+          <div class="metric">P/E <b>${s.pe_ratio ?? '—'}</b></div>
+          <div class="metric">52w range <b>${s.week52_low ? fmtUsd(s.week52_low) : '—'} – ${s.week52_high ? fmtUsd(s.week52_high) : '—'}</b></div>
+          <div class="metric">Beta <b>${s.beta ?? '—'}</b></div>
+          <div class="metric">Market cap <b>${s.market_cap_b ? '$' + s.market_cap_b + 'B' : '—'}</b></div>
+        </div>`;
+      stocksList.appendChild(card);
+      springIn(card);
+    });
+  }
+
+  function renderResearch(notes) {
+    researchList.innerHTML = '';
+    if (!notes || notes.length === 0) { researchList.innerHTML = '<div class="empty">No research items found.</div>'; return; }
+    notes.forEach(n => {
+      const card = document.createElement('div');
+      card.className = 'research-card';
+      card.innerHTML = `
+        <div class="research-title">${n.ticker ? n.ticker + ' — ' : ''}${n.title || 'Update'}</div>
+        <div class="research-body">${n.summary || ''}</div>
+        ${n.date ? `<div class="research-date">${n.date}</div>` : ''}`;
+      researchList.appendChild(card);
+      springIn(card);
+    });
+  }
+
+  function renderAccounts(accounts) {
+    accountsList.innerHTML = '';
+    if (!accounts || accounts.length === 0) { accountsList.innerHTML = '<div class="empty">No linked bank accounts found.</div>'; return; }
+    accounts.forEach(a => {
+      const card = document.createElement('div');
+      card.className = 'item-card';
+      card.innerHTML = `
+        <div class="item-left">
+          <div class="symbol-badge">${(a.institution||'?').slice(0,4)}</div>
+          <div><div class="item-name">${a.account_name || a.institution}</div><div class="item-sub">${a.institution || ''}${a.account_type ? ' · ' + a.account_type : ''}</div></div>
+        </div>
+        <div class="item-right">
+          <div class="item-value">${fmtUsd(a.balance_usd)}</div>
+        </div>`;
+      accountsList.appendChild(card);
+      springIn(card);
+    });
+  }
+
+  function renderAnalysis(text, riskNote) {
+    analysisCard.innerHTML = '';
+    const p = document.createElement('div');
+    p.textContent = text || 'No analysis available.';
+    analysisCard.appendChild(p);
+    if (riskNote) {
+      const r = document.createElement('div');
+      r.id = 'risk-note';
+      r.textContent = riskNote;
+      analysisCard.appendChild(r);
+    }
+    springIn(analysisCard);
+  }
+
+  async function refreshAll() {
+    refreshBtn.disabled = true;
+    refreshBtn.textContent = 'Loading…';
+    totalCard.innerHTML = '<div class="loading">Fetching your data…</div>';
+    cryptoList.innerHTML = '<div class="loading">Fetching crypto…</div>';
+    stocksList.innerHTML = '<div class="loading">Fetching stocks…</div>';
+    researchList.innerHTML = '<div class="loading">Fetching research…</div>';
+    accountsList.innerHTML = '<div class="loading">Fetching accounts…</div>';
+    analysisCard.innerHTML = '<div class="loading">Analyzing…</div>';
+
+    const prompt = `Gather the following, then respond with ONLY a raw JSON object (no markdown fences, no other text):
+
+1. Use the Robinhood connector to fetch my current cryptocurrency positions (symbol, quantity, current USD value, cost basis, 24h change).
+2. Use the FactSet connector to fetch current fundamentals for AAPL, MSFT, and IBM: price, 1-day change percent, P/E ratio, 52-week high/low, beta, market cap in billions, company name.
+3. Use the Quartr connector to find the 2-3 most recent notable research items, earnings events, or company updates for AAPL, MSFT, and IBM.
+4. Use the Grasshopper connector to list my bank accounts and their balances.
+5. Use the Era connector to list any additional linked financial accounts and balances not already covered by Grasshopper or Robinhood.
+6. Use web search if needed to fill gaps or check current market sentiment.
+
+Respond with exactly this JSON shape:
+{
+  "positions": [{"symbol": "BTC", "quantity": 0.5, "value_usd": 21500, "cost_basis_usd": 19000, "change_pct_24h": 3.2}],
+  "stocks": [{"ticker": "AAPL", "company_name": "Apple Inc.", "price": 230.5, "change_pct_1d": 1.1, "pe_ratio": 34.2, "week52_low": 164, "week52_high": 237, "beta": 1.2, "market_cap_b": 3500}],
+  "research": [{"ticker": "AAPL", "title": "Q3 earnings beat", "summary": "one to two sentence factual summary", "date": "2026-07-28"}],
+  "accounts": [{"institution": "Grasshopper Bank", "account_name": "Checking", "account_type": "checking", "balance_usd": 4200}],
+  "total_value_usd": 21500,
+  "total_gain_pct": 13.2,
+  "analysis": "4-6 sentence plain-language analysis synthesizing crypto, stock, and account holdings, current trends, and volatility. Factual and balanced, never promotional, never a recommendation.",
+  "risk_note": "one sentence noting the most relevant risk factor right now"
+}
+
+If any data source returns nothing, use an empty array for that field rather than guessing values.`;
+
+    log('Refreshing dashboard: crypto, stocks, research, accounts…');
+    try {
+      const response = await fetchWithRetry('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1500,
+          messages: [{ role: 'user', content: prompt }],
+          mcp_servers: [
+            { type: 'url', url: 'https://agent.robinhood.com/mcp/trading', name: 'robinhood' },
+            { type: 'url', url: 'https://mcp.factset.com/content/v1', name: 'factset' },
+            { type: 'url', url: 'https://mcp.quartr.com/mcp', name: 'quartr' },
+            { type: 'url', url: 'https://grasshopper-mcp.prd.narmitech.com/mcp', name: 'grasshopper' },
+            { type: 'url', url: 'https://context.era.app', name: 'era' }
+          ],
+          tools: [{ type: 'web_search_20250305', name: 'web_search' }]
+        })
+      });
+      const data = await response.json();
+      const text = extractText(data);
+      const parsed = parseJsonSafe(text);
+
+      if (!parsed) {
+        totalCard.innerHTML = '<div class="loading">Could not load data. Try refreshing again.</div>';
+        analysisCard.innerHTML = '<div class="loading">Analysis unavailable.</div>';
+        log('Dashboard refresh returned unparseable data', 'error');
+        console.error('Unparsed response:', text);
+        return;
+      }
+
+      lastData = parsed;
+      renderTotal(parsed);
+      renderAllocation(parsed);
+      renderCrypto(parsed.positions);
+      renderStocks(parsed.stocks);
+      renderResearch(parsed.research);
+      renderAccounts(parsed.accounts);
+      renderAnalysis(parsed.analysis, parsed.risk_note);
+      renderGoals();
+      ['robinhood','factset','quartr','grasshopper','era'].forEach(id => connectionStatus[id] = 'connected');
+      renderConnections();
+      log('Dashboard refreshed successfully', 'success');
+    } catch (err) {
+      totalCard.innerHTML = '<div class="loading">Connection error.</div>';
+      log(`Dashboard refresh failed: ${err.message}`, 'error');
+      console.error(err);
+    } finally {
+      refreshBtn.disabled = false;
+      refreshBtn.textContent = 'Refresh';
+    }
+  }
+
+  async function askQuestion() {
+    const question = askInput.value.trim();
+    if (!question) return;
+    askBtn.disabled = true;
+    askAnswer.style.display = 'block';
+    askAnswer.textContent = 'Thinking…';
+    const context = lastData ? `Here is the user's current dashboard data: ${JSON.stringify(lastData)}` : 'No dashboard data has been loaded yet.';
+    log(`Asking: "${question.slice(0, 40)}${question.length > 40 ? '…' : ''}"`);
+    try {
+      const response = await fetchWithRetry('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 600,
+          messages: [{ role: 'user', content: `${context}\n\nAnswer this as informational market analysis only, never as financial advice or a recommendation to buy/sell: "${question}"` }],
+          tools: [{ type: 'web_search_20250305', name: 'web_search' }]
+        })
+      });
+      const data = await response.json();
+      askAnswer.textContent = extractText(data) || 'No answer returned.';
+      log('Question answered', 'success');
+    } catch (err) {
+      askAnswer.textContent = 'Connection error.';
+      log(`Question failed: ${err.message}`, 'error');
+      console.error(err);
+    } finally {
+      askBtn.disabled = false;
+    }
+  }
+
+  async function fetchHeadlines() {
+    headlinesBtn.disabled = true;
+    headlinesBtn.textContent = 'Loading…';
+    headlinesList.innerHTML = '<div class="loading">Searching for current headlines…</div>';
+
+    const prompt = `Search for today's top finance and markets headlines from nytimes.com and wsj.com, focused on stocks, crypto, or technology. Respond with ONLY a raw JSON array (no markdown fences, no other text), of up to 5 items, each written in your own words (never copy article text), in this shape:
+[{"source": "New York Times", "title": "short original headline paraphrase", "summary": "one sentence factual summary in your own words", "url": "https://..."}]`;
+
+    try {
+      log('Fetching NYT/WSJ headlines…');
+      const response = await fetchWithRetry('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1000,
+          messages: [{ role: 'user', content: prompt }],
+          tools: [{ type: 'web_search_20250305', name: 'web_search' }]
+        })
+      });
+      const data = await response.json();
+      const text = extractText(data);
+      const items = parseJsonSafe(text);
+      headlinesList.innerHTML = '';
+      if (!items || items.length === 0) {
+        headlinesList.innerHTML = '<div class="empty">No headlines found. Try again.</div>';
+        log('No headlines returned', 'error');
+        return;
+      }
+      items.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'headline-card';
+        card.innerHTML = `
+          <div class="headline-source">${item.source || ''}</div>
+          <div class="headline-title">${item.title || ''}</div>
+          <div class="headline-summary">${item.summary || ''}</div>
+          ${item.url ? `<a class="headline-link" href="${item.url}" target="_blank" rel="noopener">Read more</a>` : ''}`;
+        headlinesList.appendChild(card);
+        springIn(card);
+      });
+      log(`Loaded ${items.length} headlines`, 'success');
+    } catch (err) {
+      headlinesList.innerHTML = '<div class="loading">Connection error.</div>';
+      log(`Headlines fetch failed: ${err.message}`, 'error');
+      console.error(err);
+    } finally {
+      headlinesBtn.disabled = false;
+      headlinesBtn.textContent = 'Get latest headlines';
+    }
+  }
+  headlinesBtn.addEventListener('click', fetchHeadlines);
+
+  // ---- Goals tracker (in-memory only, resets on reload) ----
+  let goals = [];
+
+  function renderGoals() {
+    goalsList.innerHTML = '';
+    if (goals.length === 0) { goalsList.innerHTML = '<div class="empty">No goals yet — add one below.</div>'; return; }
+    const currentValue = lastData ? (lastData.total_value_usd || 0) : 0;
+    goals.forEach((g, i) => {
+      const pct = g.target > 0 ? Math.min(100, (currentValue / g.target) * 100) : 0;
+      const card = document.createElement('div');
+      card.className = 'goal-card';
+      card.innerHTML = `
+        <div class="goal-top">
+          <div class="goal-name">${g.name}</div>
+          <div class="goal-meta">${fmtUsd(currentValue)} of ${fmtUsd(g.target)}${g.date ? ' · by ' + g.date : ''}</div>
+        </div>
+        <div class="goal-track"><div class="goal-fill" style="width:${pct}%"></div></div>`;
+      goalsList.appendChild(card);
+      springIn(card);
+    });
+  }
+
+  goalAddBtn.addEventListener('click', () => {
+    const name = goalNameInput.value.trim();
+    const target = parseFloat(goalTargetInput.value);
+    const date = goalDateInput.value;
+    if (!name || !target || target <= 0) return;
+    goals.push({ name, target, date });
+    goalNameInput.value = ''; goalTargetInput.value = ''; goalDateInput.value = '';
+    renderGoals();
+  });
+
+  // ---- Trends chart ----
+  const trendsBtn = document.getElementById('trends-btn');
+  const trendsEmpty = document.getElementById('trends-empty');
+  const chartWrap = document.getElementById('chart-wrap');
+  const trendStats = document.getElementById('trend-stats');
+  let trendChart = null;
+
+  const LINE_COLORS = ['#f5f5f5', '#5DCAA5', '#D85A30', '#ED93B1', '#7F77DD', '#EF9F27'];
+
+  async function loadTrends() {
+    trendsBtn.disabled = true;
+    trendsBtn.textContent = 'Loading…';
+    trendsEmpty.textContent = 'Fetching six months of historical data…';
+    trendsEmpty.style.display = 'block';
+    chartWrap.style.display = 'none';
+
+    const holdingSymbols = lastData && lastData.positions ? lastData.positions.map(p => p.symbol) : ['BTC'];
+    const stockSymbols = lastData && lastData.stocks ? lastData.stocks.map(s => s.ticker) : ['AAPL', 'MSFT', 'IBM'];
+
+    const prompt = `Using the FactSet connector and web search, get monthly closing price history for the past 6 months for each of these assets: ${[...holdingSymbols, ...stockSymbols].join(', ')}.
+
+For each asset, convert prices into percent growth relative to its price 6 months ago (so the first point is always 0). Respond with ONLY a raw JSON object (no markdown fences, no other text) in this shape:
+{
+  "labels": ["Feb", "Mar", "Apr", "May", "Jun", "Jul"],
+  "series": [{"label": "BTC", "data": [0, 8.2, -3.1, 15.4, 22.0, 30.5]}]
+}
+
+Use real historical data. If an asset's history is unavailable, omit it from series rather than inventing numbers.`;
+
+    try {
+      log('Fetching 6-month trend data…');
+      const response = await fetchWithRetry('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1200,
+          messages: [{ role: 'user', content: prompt }],
+          mcp_servers: [
+            { type: 'url', url: 'https://mcp.factset.com/content/v1', name: 'factset' }
+          ],
+          tools: [{ type: 'web_search_20250305', name: 'web_search' }]
+        })
+      });
+      const data = await response.json();
+      const text = extractText(data);
+      const parsed = parseJsonSafe(text);
+
+      if (!parsed || !parsed.series || parsed.series.length === 0) {
+        trendsEmpty.textContent = 'Could not load trend data. Try again.';
+        log('Trend data unavailable', 'error');
+        console.error('Unparsed trend response:', text);
+        return;
+      }
+
+      trendsEmpty.style.display = 'none';
+      chartWrap.style.display = 'block';
+      renderTrendChart(parsed.labels, parsed.series);
+      renderTrendStats(parsed.series);
+      log('Trend chart updated', 'success');
+    } catch (err) {
+      trendsEmpty.textContent = 'Connection error.';
+      log(`Trend fetch failed: ${err.message}`, 'error');
+      console.error(err);
+    } finally {
+      trendsBtn.disabled = false;
+      trendsBtn.textContent = 'Refresh trend data';
+    }
+  }
+
+  function renderTrendChart(labels, series) {
+    const ctx = document.getElementById('trend-chart').getContext('2d');
+    if (trendChart) trendChart.destroy();
+    trendChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: series.map((s, i) => ({
+          label: s.label,
+          data: s.data,
+          borderColor: LINE_COLORS[i % LINE_COLORS.length],
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          tension: 0.3
+        }))
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { labels: { color: '#8a8a8a', font: { size: 12 }, usePointStyle: true, boxWidth: 6 } },
+          tooltip: {
+            backgroundColor: '#161616', borderColor: '#2a2a2a', borderWidth: 1,
+            titleColor: '#f5f5f5', bodyColor: '#f5f5f5',
+            callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y > 0 ? '+' : ''}${ctx.parsed.y.toFixed(1)}%` }
+          }
+        },
+        scales: {
+          x: { grid: { color: '#2a2a2a' }, ticks: { color: '#545454', font: { size: 11 } } },
+          y: {
+            grid: { color: '#2a2a2a' },
+            ticks: { color: '#545454', font: { size: 11 }, callback: (v) => `${v > 0 ? '+' : ''}${v}%` }
+          }
+        }
+      }
+    });
+  }
+
+  function renderTrendStats(series) {
+    trendStats.innerHTML = '';
+    series.forEach(s => {
+      const last = s.data[s.data.length - 1] ?? 0;
+      const div = document.createElement('div');
+      div.className = 'metric';
+      div.innerHTML = `${s.label} <b class="${last >= 0 ? 'up' : 'down'}">${last > 0 ? '+' : ''}${last.toFixed(1)}%</b> over 6mo`;
+      trendStats.appendChild(div);
+    });
+  }
+
+  trendsBtn.addEventListener('click', loadTrends);
+  askBtn.addEventListener('click', askQuestion);
+  askInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') askQuestion(); });
+</script>
+</body>
+</html>
