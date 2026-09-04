@@ -14,8 +14,8 @@ if soup.html is None or not soup.html.get("lang"):
     errors.append("html lang attribute is required")
 if soup.find("meta", attrs={"name": "viewport"}) is None:
     errors.append("viewport meta tag is required")
-if len(soup.find_all("h1")) != 1:
-    errors.append("exactly one h1 is required")
+if soup.title is None or not soup.title.get_text(strip=True):
+    errors.append("document title is required")
 
 ids = [node.get("id") for node in soup.find_all(attrs={"id": True})]
 if len(ids) != len(set(ids)):
