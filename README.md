@@ -9,12 +9,16 @@ Nyx is a single-file HTML/CSS/JavaScript application designed to make a market w
 - responsive multi-tab interface built with semantic HTML, CSS, and JavaScript;
 - Chart.js visualizations for allocation and trend views;
 - feature flags and activity logging for client-side observability;
-- bounded exponential-backoff behavior for transient requests; and
+- fail-closed live-request boundary and a content-security policy; and
 - explicit separation between the user interface and any credential-bearing backend.
 
 ## Runtime boundary
 
-The current prototype was designed for the Claude.ai artifact environment. Live data operations depend on that environment's authenticated tool and connector layer. Opening `market-dashboard.html` directly will render the interface, but credentialed data refreshes require a server-side proxy or another trusted runtime.
+The standalone prototype runs in preview mode. Remote model and financial-connector
+requests are disabled in code and blocked by the page's connection policy. No artifact
+host, model response, or successful HTTP response is accepted as user authorization.
+The inline script is authorized by its exact CSP hash; Chart.js has a SHA-384 integrity pin.
+External strings are escaped and generated links accept credential-free HTTPS only.
 
 The repository does **not** contain API keys, brokerage credentials, or a production financial-data backend. A standalone deployment should add:
 
@@ -36,6 +40,7 @@ Then open `http://localhost:8000/market-dashboard.html`.
 
 ```bash
 python tests/test_dashboard.py
+node tests/test_runtime_security.js
 ```
 
 The test checks the document structure, duplicate IDs, local references, secret-pattern denylist, placeholder text, and required disclaimer.
@@ -52,3 +57,4 @@ Nyx is an interface and workflow prototype. It provides informational analysis o
 ## License
 
 MIT. See [`LICENSE`](LICENSE).
+
