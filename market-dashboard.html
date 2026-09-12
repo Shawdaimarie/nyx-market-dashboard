@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta http-equiv="Content-Security-Policy" content="connect-src 'none'; object-src 'none'; base-uri 'none'; script-src 'sha256-zmPDtGrE93AGNqqRY78N02dKkSE77LYyLQ16a2ZLJBg=' https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js">
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Nyx — Market Dashboard</title>
@@ -190,6 +191,7 @@
 </style>
 </head>
 <body>
+<p role="status" style="padding:16px; text-align:center;">Preview mode: live data, AI requests, and financial connections are disabled until an authorized server integration is available.</p>
   <div id="app">
     <header>
       <div class="brand">
@@ -347,7 +349,7 @@
     </div>
   </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js" integrity="sha384-DhxhYObIMeMNGyAG7iK11OHzBIKyEIeRL0ad1iFPAOwZB8iirUlTT0O/WJJUk8+o" crossorigin="anonymous"></script>
 <script>
   // ---- Feature flags (toggle tabs/features without editing markup elsewhere) ----
   const FEATURE_FLAGS = {
@@ -376,26 +378,10 @@
     logPanel.scrollTop = logPanel.scrollHeight;
   }
 
-  // ---- Retry with exponential backoff for API calls ----
-  async function fetchWithRetry(url, options, retries = 2, baseDelay = 800) {
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      try {
-        const response = await fetch(url, options);
-        if (!response.ok && attempt < retries) {
-          log(`Request failed (status ${response.status}), retrying…`, 'error');
-          await new Promise(r => setTimeout(r, baseDelay * Math.pow(2, attempt)));
-          continue;
-        }
-        return response;
-      } catch (err) {
-        if (attempt < retries) {
-          log(`Network error, retrying (attempt ${attempt + 1})…`, 'error');
-          await new Promise(r => setTimeout(r, baseDelay * Math.pow(2, attempt)));
-        } else {
-          throw err;
-        }
-      }
-    }
+  // No remote model or financial tool execution in this standalone prototype.
+  // A trusted, human-approved server integration must be reviewed before enabling it.
+  async function fetchWithRetry() {
+    throw new Error('Live connections are disabled. An approved server integration is required.');
   }
 
   const refreshBtn = document.getElementById('refresh-btn');
@@ -719,6 +705,16 @@
     });
   }
 
+  function escapeHTML(value) {
+    return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c]));
+  }
+  function safeExternalURL(value) {
+    try {
+      const url = new URL(value);
+      return url.protocol === 'https:' && !url.username && !url.password ? url.href : '';
+    } catch { return ''; }
+  }
+
   function fmtUsd(n) { return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n || 0); }
   function fmtPct(n) { const v = n || 0; return `${v > 0 ? '+' : ''}${v.toFixed(2)}%`; }
 
@@ -751,8 +747,8 @@
       const change = p.change_pct_24h ?? 0;
       card.innerHTML = `
         <div class="item-left">
-          <div class="symbol-badge">${(p.symbol||'?').slice(0,4)}</div>
-          <div><div class="item-name">${p.symbol||'Unknown'}</div><div class="item-sub">${p.quantity ?? ''} coins</div></div>
+          <div class="symbol-badge">${escapeHTML((p.symbol||'?').slice(0,4))}</div>
+          <div><div class="item-name">${escapeHTML(p.symbol||'Unknown')}</div><div class="item-sub">${escapeHTML(p.quantity ?? '')} coins</div></div>
         </div>
         <div class="item-right">
           <div class="item-value">${fmtUsd(p.value_usd)}</div>
@@ -775,8 +771,8 @@
       card.innerHTML = `
         <div style="display:flex; align-items:center; justify-content:space-between;">
           <div class="item-left">
-            <div class="symbol-badge">${(s.ticker||'?').slice(0,4)}</div>
-            <div><div class="item-name">${s.company_name || s.ticker}</div><div class="item-sub">${s.ticker}</div></div>
+            <div class="symbol-badge">${escapeHTML((s.ticker||'?').slice(0,4))}</div>
+            <div><div class="item-name">${escapeHTML(s.company_name || s.ticker)}</div><div class="item-sub">${escapeHTML(s.ticker)}</div></div>
           </div>
           <div class="item-right">
             <div class="item-value">${fmtUsd(s.price)}</div>
@@ -784,10 +780,10 @@
           </div>
         </div>
         <div class="metric-row">
-          <div class="metric">P/E <b>${s.pe_ratio ?? '—'}</b></div>
+          <div class="metric">P/E <b>${escapeHTML(s.pe_ratio ?? '—')}</b></div>
           <div class="metric">52w range <b>${s.week52_low ? fmtUsd(s.week52_low) : '—'} – ${s.week52_high ? fmtUsd(s.week52_high) : '—'}</b></div>
-          <div class="metric">Beta <b>${s.beta ?? '—'}</b></div>
-          <div class="metric">Market cap <b>${s.market_cap_b ? '$' + s.market_cap_b + 'B' : '—'}</b></div>
+          <div class="metric">Beta <b>${escapeHTML(s.beta ?? '—')}</b></div>
+          <div class="metric">Market cap <b>${escapeHTML(s.market_cap_b ? '$' + s.market_cap_b + 'B' : '—')}</b></div>
         </div>`;
       stocksList.appendChild(card);
       springIn(card);
@@ -801,9 +797,9 @@
       const card = document.createElement('div');
       card.className = 'research-card';
       card.innerHTML = `
-        <div class="research-title">${n.ticker ? n.ticker + ' — ' : ''}${n.title || 'Update'}</div>
-        <div class="research-body">${n.summary || ''}</div>
-        ${n.date ? `<div class="research-date">${n.date}</div>` : ''}`;
+        <div class="research-title">${escapeHTML(n.ticker ? n.ticker + ' — ' : '')}${escapeHTML(n.title || 'Update')}</div>
+        <div class="research-body">${escapeHTML(n.summary || '')}</div>
+        ${n.date ? `<div class="research-date">${escapeHTML(n.date)}</div>` : ''}`;
       researchList.appendChild(card);
       springIn(card);
     });
@@ -817,8 +813,8 @@
       card.className = 'item-card';
       card.innerHTML = `
         <div class="item-left">
-          <div class="symbol-badge">${(a.institution||'?').slice(0,4)}</div>
-          <div><div class="item-name">${a.account_name || a.institution}</div><div class="item-sub">${a.institution || ''}${a.account_type ? ' · ' + a.account_type : ''}</div></div>
+          <div class="symbol-badge">${escapeHTML((a.institution||'?').slice(0,4))}</div>
+          <div><div class="item-name">${escapeHTML(a.account_name || a.institution)}</div><div class="item-sub">${escapeHTML(a.institution || '')}${escapeHTML(a.account_type ? ' · ' + a.account_type : '')}</div></div>
         </div>
         <div class="item-right">
           <div class="item-value">${fmtUsd(a.balance_usd)}</div>
@@ -992,10 +988,10 @@ If any data source returns nothing, use an empty array for that field rather tha
         const card = document.createElement('div');
         card.className = 'headline-card';
         card.innerHTML = `
-          <div class="headline-source">${item.source || ''}</div>
-          <div class="headline-title">${item.title || ''}</div>
-          <div class="headline-summary">${item.summary || ''}</div>
-          ${item.url ? `<a class="headline-link" href="${item.url}" target="_blank" rel="noopener">Read more</a>` : ''}`;
+          <div class="headline-source">${escapeHTML(item.source || '')}</div>
+          <div class="headline-title">${escapeHTML(item.title || '')}</div>
+          <div class="headline-summary">${escapeHTML(item.summary || '')}</div>
+          ${item.url ? `<a class="headline-link" href="${escapeHTML(safeExternalURL(item.url))}" target="_blank" rel="noopener">Read more</a>` : ''}`;
         headlinesList.appendChild(card);
         springIn(card);
       });
@@ -1024,7 +1020,7 @@ If any data source returns nothing, use an empty array for that field rather tha
       card.className = 'goal-card';
       card.innerHTML = `
         <div class="goal-top">
-          <div class="goal-name">${g.name}</div>
+          <div class="goal-name">${escapeHTML(g.name)}</div>
           <div class="goal-meta">${fmtUsd(currentValue)} of ${fmtUsd(g.target)}${g.date ? ' · by ' + g.date : ''}</div>
         </div>
         <div class="goal-track"><div class="goal-fill" style="width:${pct}%"></div></div>`;
@@ -1171,3 +1167,4 @@ Use real historical data. If an asset's history is unavailable, omit it from ser
 </script>
 </body>
 </html>
+
