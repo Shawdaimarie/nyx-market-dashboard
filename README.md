@@ -52,3 +52,7 @@ Nyx is an interface and workflow prototype. It provides informational analysis o
 ## License
 
 MIT. See [`LICENSE`](LICENSE).
+
+## Local review — November 2026
+
+The browser uses a same-origin /api/messages contract. No backend is bundled and live integrations are not verified. Deploy an authenticated, allowlisted backend with server-side credentials and response validation before enabling live data. A success response alone cannot confirm a connector: connector_verified must be true with tool-use evidence. Untrusted values render as text and headline links accept only HTTP(S).

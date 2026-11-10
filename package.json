@@ -1,0 +1,11 @@
+{
+  "name": "nyx-interface-checks",
+  "private": true,
+  "scripts": {
+    "test": "node tests/browser.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.58.2",
+    "@axe-core/playwright": "4.11.1"
+  }
+}

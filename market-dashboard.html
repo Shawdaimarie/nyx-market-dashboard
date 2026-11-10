@@ -13,7 +13,7 @@
     --border-strong: #3d3d3d;
     --text: #f5f5f5;
     --text-dim: #8a8a8a;
-    --text-faint: #545454;
+    --text-faint: #999999;
     --up: #34d399;
     --down: #f87171;
   }
@@ -187,9 +187,14 @@
   .quicklink-chip:active { transform: scale(0.96); }
   .quicklink-symbol { font-weight: 500; }
   .quicklink-name { font-size: 11px; color: var(--text-faint); }
+/* Preserve mobile navigation without widening the page. */
+* { min-width: 0; }
+.nav-tabs { max-width: 100%; overflow-x: auto; }
+@media (max-width: 600px) { header { flex-wrap: wrap; } .metric-row { flex-wrap: wrap; } }
 </style>
 </head>
 <body>
+<p style="padding:12px 20px;color:#ddd">Interface prototype. Live data requires a separately configured, authenticated same-origin backend; no provider credentials are stored in this page.</p>
   <div id="app">
     <header>
       <div class="brand">
@@ -349,6 +354,10 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script>
+const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const html = (parts, ...values) => parts.reduce((out, part, i) => out + part + (i < values.length ? escapeHTML(values[i]) : ''), '');
+const safeURL = value => { try { const u = new URL(value); return ['http:', 'https:'].includes(u.protocol) ? u.href : ''; } catch { return ''; } };
+
   // ---- Feature flags (toggle tabs/features without editing markup elsewhere) ----
   const FEATURE_FLAGS = {
     accounts: true,
@@ -481,7 +490,7 @@
     items.forEach(item => {
       const card = document.createElement('div');
       card.className = 'research-card';
-      card.innerHTML = `
+      card.innerHTML = html`
         <div class="research-title">${item.title}</div>
         <div class="research-body">${item.body}</div>
         <div class="research-date"><a class="headline-link" href="${item.link}" target="_blank" rel="noopener">${item.linkLabel}</a></div>`;
@@ -520,7 +529,7 @@
     FOCUS_SOUNDS.forEach(p => {
       const card = document.createElement('div');
       card.className = 'podcast-card';
-      card.innerHTML = `
+      card.innerHTML = html`
         <div><div class="podcast-name">${p.name}</div><div class="podcast-desc">${p.desc}</div></div>
         <a class="podcast-link" href="${p.url}" target="_blank" rel="noopener">Listen</a>`;
       container.appendChild(card);
@@ -534,7 +543,7 @@
     PODCASTS.forEach(p => {
       const card = document.createElement('div');
       card.className = 'podcast-card';
-      card.innerHTML = `
+      card.innerHTML = html`
         <div><div class="podcast-name">${p.name}</div><div class="podcast-desc">${p.desc}</div></div>
         <a class="podcast-link" href="${p.url}" target="_blank" rel="noopener">Listen</a>`;
       podcastsList.appendChild(card);
@@ -600,7 +609,7 @@
       const a = document.createElement('a');
       a.className = 'quicklink-chip';
       a.href = q.url; a.target = '_blank'; a.rel = 'noopener';
-      a.innerHTML = `<span><span class="quicklink-symbol">${q.symbol}</span><br><span class="quicklink-name">${q.name}</span></span><span aria-hidden="true" style="font-size:14px; color:var(--text-faint);">\u2197</span>`;
+      a.innerHTML = html`<span><span class="quicklink-symbol">${q.symbol}</span><br><span class="quicklink-name">${q.name}</span></span><span aria-hidden="true" style="font-size:14px; color:var(--text-faint);">\u2197</span>`;
       wrap.appendChild(a);
     });
   }
@@ -622,7 +631,7 @@
       const status = connectionStatus[c.id] || 'idle';
       const card = document.createElement('div');
       card.className = 'item-card';
-      card.innerHTML = `
+      card.innerHTML = html`
         <div class="item-left">
           <span class="status-dot ${status === 'connected' ? 'connected' : status === 'error' ? 'error' : ''}"></span>
           <div><div class="item-name">${c.name}</div><div class="item-sub">${c.desc}</div></div>
@@ -643,7 +652,7 @@
     if (btn) { btn.disabled = true; btn.textContent = 'Connecting…'; }
     log(`Connecting to ${c.name}…`);
     try {
-      const response = await fetchWithRetry('https://api.anthropic.com/v1/messages', {
+      const response = await fetchWithRetry('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -655,7 +664,7 @@
       });
       const data = await response.json();
       const hadToolUse = (data.content || []).some(b => b.type === 'mcp_tool_use' || b.type === 'mcp_tool_result');
-      connectionStatus[id] = response.ok ? 'connected' : 'error';
+      connectionStatus[id] = response.ok && data.connector_verified === true && hadToolUse ? 'connected' : 'error';
       log(`${c.name} ${connectionStatus[id]}`, connectionStatus[id] === 'connected' ? 'success' : 'error');
     } catch (err) {
       connectionStatus[id] = 'error';
@@ -693,7 +702,7 @@
     segments.forEach(seg => {
       const row = document.createElement('div');
       row.style.cssText = 'display:flex; align-items:center; justify-content:space-between; font-size:13px;';
-      row.innerHTML = `
+      row.innerHTML = html`
         <span style="display:flex; align-items:center; gap:8px;"><span style="width:8px;height:8px;border-radius:50%;background:${seg.color};display:inline-block;"></span>${seg.label}</span>
         <span style="color:var(--text-dim);">${((seg.value / total) * 100).toFixed(0)}%</span>`;
       legend.appendChild(row);
@@ -749,7 +758,7 @@
       const card = document.createElement('div');
       card.className = 'item-card';
       const change = p.change_pct_24h ?? 0;
-      card.innerHTML = `
+      card.innerHTML = html`
         <div class="item-left">
           <div class="symbol-badge">${(p.symbol||'?').slice(0,4)}</div>
           <div><div class="item-name">${p.symbol||'Unknown'}</div><div class="item-sub">${p.quantity ?? ''} coins</div></div>
@@ -772,7 +781,7 @@
       card.style.flexDirection = 'column';
       card.style.alignItems = 'stretch';
       const change = s.change_pct_1d ?? 0;
-      card.innerHTML = `
+      card.innerHTML = html`
         <div style="display:flex; align-items:center; justify-content:space-between;">
           <div class="item-left">
             <div class="symbol-badge">${(s.ticker||'?').slice(0,4)}</div>
@@ -800,10 +809,10 @@
     notes.forEach(n => {
       const card = document.createElement('div');
       card.className = 'research-card';
-      card.innerHTML = `
+      card.innerHTML = html`
         <div class="research-title">${n.ticker ? n.ticker + ' — ' : ''}${n.title || 'Update'}</div>
         <div class="research-body">${n.summary || ''}</div>
-        ${n.date ? `<div class="research-date">${n.date}</div>` : ''}`;
+        <div class="research-date">${n.date || ""}</div>`;
       researchList.appendChild(card);
       springIn(card);
     });
@@ -815,7 +824,7 @@
     accounts.forEach(a => {
       const card = document.createElement('div');
       card.className = 'item-card';
-      card.innerHTML = `
+      card.innerHTML = html`
         <div class="item-left">
           <div class="symbol-badge">${(a.institution||'?').slice(0,4)}</div>
           <div><div class="item-name">${a.account_name || a.institution}</div><div class="item-sub">${a.institution || ''}${a.account_type ? ' · ' + a.account_type : ''}</div></div>
@@ -877,7 +886,7 @@ If any data source returns nothing, use an empty array for that field rather tha
 
     log('Refreshing dashboard: crypto, stocks, research, accounts…');
     try {
-      const response = await fetchWithRetry('https://api.anthropic.com/v1/messages', {
+      const response = await fetchWithRetry('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -937,7 +946,7 @@ If any data source returns nothing, use an empty array for that field rather tha
     const context = lastData ? `Here is the user's current dashboard data: ${JSON.stringify(lastData)}` : 'No dashboard data has been loaded yet.';
     log(`Asking: "${question.slice(0, 40)}${question.length > 40 ? '…' : ''}"`);
     try {
-      const response = await fetchWithRetry('https://api.anthropic.com/v1/messages', {
+      const response = await fetchWithRetry('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -969,7 +978,7 @@ If any data source returns nothing, use an empty array for that field rather tha
 
     try {
       log('Fetching NYT/WSJ headlines…');
-      const response = await fetchWithRetry('https://api.anthropic.com/v1/messages', {
+      const response = await fetchWithRetry('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -991,11 +1000,17 @@ If any data source returns nothing, use an empty array for that field rather tha
       items.forEach(item => {
         const card = document.createElement('div');
         card.className = 'headline-card';
-        card.innerHTML = `
+        card.innerHTML = html`
           <div class="headline-source">${item.source || ''}</div>
           <div class="headline-title">${item.title || ''}</div>
           <div class="headline-summary">${item.summary || ''}</div>
-          ${item.url ? `<a class="headline-link" href="${item.url}" target="_blank" rel="noopener">Read more</a>` : ''}`;
+          `;
+        const url = safeURL(item.url);
+        if (url) {
+          const link = document.createElement('a');
+          link.className = 'headline-link'; link.href = url; link.target = '_blank';
+          link.rel = 'noopener noreferrer'; link.textContent = 'Read more'; card.appendChild(link);
+        }
         headlinesList.appendChild(card);
         springIn(card);
       });
@@ -1022,7 +1037,7 @@ If any data source returns nothing, use an empty array for that field rather tha
       const pct = g.target > 0 ? Math.min(100, (currentValue / g.target) * 100) : 0;
       const card = document.createElement('div');
       card.className = 'goal-card';
-      card.innerHTML = `
+      card.innerHTML = html`
         <div class="goal-top">
           <div class="goal-name">${g.name}</div>
           <div class="goal-meta">${fmtUsd(currentValue)} of ${fmtUsd(g.target)}${g.date ? ' · by ' + g.date : ''}</div>
@@ -1074,7 +1089,7 @@ Use real historical data. If an asset's history is unavailable, omit it from ser
 
     try {
       log('Fetching 6-month trend data…');
-      const response = await fetchWithRetry('https://api.anthropic.com/v1/messages', {
+      const response = await fetchWithRetry('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1144,10 +1159,10 @@ Use real historical data. If an asset's history is unavailable, omit it from ser
           }
         },
         scales: {
-          x: { grid: { color: '#2a2a2a' }, ticks: { color: '#545454', font: { size: 11 } } },
+          x: { grid: { color: '#2a2a2a' }, ticks: { color: '#bfcac7', font: { size: 11 } } },
           y: {
             grid: { color: '#2a2a2a' },
-            ticks: { color: '#545454', font: { size: 11 }, callback: (v) => `${v > 0 ? '+' : ''}${v}%` }
+            ticks: { color: '#bfcac7', font: { size: 11 }, callback: (v) => `${v > 0 ? '+' : ''}${v}%` }
           }
         }
       }
@@ -1160,7 +1175,7 @@ Use real historical data. If an asset's history is unavailable, omit it from ser
       const last = s.data[s.data.length - 1] ?? 0;
       const div = document.createElement('div');
       div.className = 'metric';
-      div.innerHTML = `${s.label} <b class="${last >= 0 ? 'up' : 'down'}">${last > 0 ? '+' : ''}${last.toFixed(1)}%</b> over 6mo`;
+      div.innerHTML = html`${s.label} <b class="${last >= 0 ? 'up' : 'down'}">${last > 0 ? '+' : ''}${last.toFixed(1)}%</b> over 6mo`;
       trendStats.appendChild(div);
     });
   }
